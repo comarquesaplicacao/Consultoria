@@ -492,14 +492,17 @@
     var sel = document.getElementById('sel-aba-lancar');
   var LISTA_POR_CAMPO = {
     'Clientes|Status': 'Status Cliente', 'Clientes|Formato de Cobrança': 'Formato de Cobrança',
+    'Clientes|Porte': 'Porte',
     'Orçamentos|Status': 'Status Orçamento', 'Orçamentos|Tipo': 'Tipo Orçamento/Entrada',
     'Orçamentos|Categoria': 'Categoria', 'Orçamentos|Consultor': 'Consultor',
-    'Orçamentos|Forma de Pagamento': 'Forma de Pagamento',
-    'Vagas|Status': 'Status Vaga', 'Vagas|Tipo de Vaga': 'Tipo de Vaga',
+    'Orçamentos|Forma de Pagamento': 'Forma de Pagamento', 'Orçamentos|Fase': 'Fase',
+    'Orçamentos|Canal de Captação': 'Canal de Captação',
+    'Vagas|Status': 'Status Vaga', 'Vagas|Tipo de Vaga': 'Tipo de Vaga', 'Vagas|Responsável': 'Consultor',
     'Lançamentos|Tipo': 'Tipo Lançamento', 'Lançamentos|Categoria': 'Categoria',
-    'Lançamentos|Forma de Pagamento': 'Forma de Pagamento',
-    'Colaboradores|Gênero': 'Gênero',
-    'Contratações|Status': 'Status Contratação',
+    'Lançamentos|Forma de Pagamento': 'Forma de Pagamento', 'Lançamentos|Natureza': 'Natureza Lançamento',
+    'Colaboradores|Gênero': 'Gênero', 'Colaboradores|Estado Civil': 'Estado Civil',
+    'Contratações|Status': 'Status Contratação', 'Contratações|Condição de Substituição': 'Condição de Substituição',
+    'Metas|Mês': 'Mês',
     'Solicitações|Status': 'Status Solicitação'
   };
 
