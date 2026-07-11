@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoMarques — Portal do Cliente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+<div class="wrap" id="tela-login" style="max-width:760px;">
+
+  <header class="masthead" style="border-bottom:2px solid var(--ink);">
+    <div>
+      <img src="assets/logo-mark.png" alt="" style="height:40px;margin-bottom:10px;">
+      <p class="eyebrow">Consultoria CoMarques</p>
+      <h1>Portal do Cliente</h1>
+      <p class="sub">Acompanhe seus contratos, vagas e equipe.</p>
+    </div>
+  </header>
+
+  <div id="conteudo">
+    <div class="estado" style="max-width:360px;margin:0 auto;text-align:left;">
+      <h2 style="text-align:center;">Entrar</h2>
+      <p style="text-align:center;">Informe o e-mail cadastrado com seu consultor.</p>
+      <div style="margin-top:20px;">
+        <input type="email" id="input-email" placeholder="seuemail@empresa.com">
+        <input type="password" id="input-senha" placeholder="Senha" style="margin-top:10px;">
+        <button id="btn-solicitar" style="width:100%;margin-top:10px;">Entrar</button>
+        <p class="mensagem" id="msg-login"></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/config.js" defer></script>
+<script src="js/gas.js" defer></script>
+<script src="js/cliente.js" defer></script>
+</body>
+</html>

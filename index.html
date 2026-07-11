@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoMarques — Painel Estratégico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="assets/logo-mark.png" alt="" class="brand-mark">
+      <p class="eyebrow">Consultoria</p>
+      <strong>CoMarques</strong>
+    </div>
+    <nav id="nav-abas"></nav>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <h1 id="titulo-aba">Visão geral</h1>
+      <div class="filtro-grupo">
+        <span>Período</span>
+        <input type="month" id="filtro-de">
+        <span>até</span>
+        <input type="month" id="filtro-ate">
+      </div>
+      <div class="filtro-grupo">
+        <span>Cliente</span>
+        <select id="filtro-cliente"><option value="todos">Todos os clientes</option></select>
+      </div>
+    </header>
+    <main class="content-area" id="conteudo">
+      <div class="estado"><h2>Carregando dados…</h2></div>
+    </main>
+  </div>
+
+</div>
+
+<script src="js/config.js" defer></script>
+<script src="js/gas.js" defer></script>
+<script src="js/painel.js" defer></script>
+</body>
+</html>
