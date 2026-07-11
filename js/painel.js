@@ -478,6 +478,8 @@
     });
   };
 
+  var ID_AUTO_POR_ABA = { 'Lançamentos': 'Id Lançamento', 'Vagas': 'Id Vaga', 'Contratações': 'Id Contratação', 'Colaboradores': 'Id Colaborador', 'Clientes': 'Id' };
+
   function montarFormLancar() {
     var abas = Object.keys(estado.estrutura);
     var area = document.getElementById('lancar-form-area');
@@ -490,7 +492,12 @@
     var sel = document.getElementById('sel-aba-lancar');
     function montarCampos() {
       var headers = estado.estrutura[sel.value];
+      var colunaIdAuto = ID_AUTO_POR_ABA[sel.value];
       document.getElementById('campos-lancar').innerHTML = headers.map(function (h) {
+        if (h === colunaIdAuto) {
+          return '<label style="font-size:12px;color:var(--muted);">' + h +
+            '<input type="text" disabled placeholder="(gerado automaticamente ao salvar)" style="margin-top:4px;background:#F5F5F5;"></label>';
+        }
         var tipo = tipoCampo(h);
         if (tipo === 'cliente') {
           return '<label style="font-size:12px;color:var(--muted);">' + h +
