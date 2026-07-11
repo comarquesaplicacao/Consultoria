@@ -478,7 +478,7 @@
     });
   };
 
-  var ID_AUTO_POR_ABA = { 'Lançamentos': 'Id Lançamento', 'Vagas': 'Id Vaga', 'Contratações': 'Id Contratação', 'Colaboradores': 'Id Colaborador', 'Clientes': 'Id' };
+  var ID_AUTO_POR_ABA = { 'Lançamentos': 'Id Lançamento', 'Vagas': 'Id Vaga', 'Contratações': 'Id Contratação', 'Colaboradores': 'Id Colaborador', 'Clientes': 'Id', 'Orçamentos': 'Id Orçamento' };
 
   function montarFormLancar() {
     var abas = Object.keys(estado.estrutura);
