@@ -471,7 +471,7 @@
     if (estado.estrutura) { montarFormLancar(); return; }
     chamarAppsScript({ action: 'estrutura', chave: pegarChaveSalva() }).then(function (res) {
       if (res.erro) { document.getElementById('lancar-form-area').innerHTML = '<p class="mensagem erro">' + res.erro + '</p>'; return; }
-      estado.estrutura = res.abas;
+      estado.estrutura = res;
       montarFormLancar();
     }).catch(function (err) {
       document.getElementById('lancar-form-area').innerHTML = '<p class="mensagem erro">' + err.message + '</p>';
@@ -481,7 +481,7 @@
   var ID_AUTO_POR_ABA = { 'Lançamentos': 'Id Lançamento', 'Vagas': 'Id Vaga', 'Contratações': 'Id Contratação', 'Colaboradores': 'Id Colaborador', 'Clientes': 'Id', 'Orçamentos': 'Id Orçamento' };
 
   function montarFormLancar() {
-    var abas = Object.keys(estado.estrutura);
+    var abas = Object.keys(estado.estrutura.abas);
     var area = document.getElementById('lancar-form-area');
     area.innerHTML =
       '<select id="sel-aba-lancar">' + abas.map(function (a) { return '<option value="' + a + '">' + a + '</option>'; }).join('') + '</select>' +
@@ -490,27 +490,48 @@
       '<p class="mensagem" id="msg-lancar"></p>';
 
     var sel = document.getElementById('sel-aba-lancar');
-    function montarCampos() {
-      var headers = estado.estrutura[sel.value];
-      var colunaIdAuto = ID_AUTO_POR_ABA[sel.value];
-      document.getElementById('campos-lancar').innerHTML = headers.map(function (h) {
-        if (h === colunaIdAuto) {
-          return '<label style="font-size:12px;color:var(--muted);">' + h +
-            '<input type="text" disabled placeholder="(gerado automaticamente ao salvar)" style="margin-top:4px;background:#F5F5F5;"></label>';
-        }
-        var tipo = tipoCampo(h);
-        if (tipo === 'cliente') {
-          return '<label style="font-size:12px;color:var(--muted);">' + h +
-            '<select data-campo="' + h + '" style="margin-top:4px;">' +
-            estado.dados.clientes.map(function (c) { return '<option value="' + c.id + '">' + c.nome + '</option>'; }).join('') +
-            '</select></label>';
-        }
-        var inputTipo = tipo === 'date' ? 'date' : (tipo === 'number' ? 'number' : 'text');
+  var LISTA_POR_CAMPO = {
+    'Clientes|Status': 'Status Cliente', 'Clientes|Formato de Cobrança': 'Formato de Cobrança',
+    'Orçamentos|Status': 'Status Orçamento', 'Orçamentos|Tipo': 'Tipo Orçamento/Entrada',
+    'Orçamentos|Categoria': 'Categoria', 'Orçamentos|Consultor': 'Consultor',
+    'Orçamentos|Forma de Pagamento': 'Forma de Pagamento',
+    'Vagas|Status': 'Status Vaga', 'Vagas|Tipo de Vaga': 'Tipo de Vaga',
+    'Lançamentos|Tipo': 'Tipo Lançamento', 'Lançamentos|Categoria': 'Categoria',
+    'Lançamentos|Forma de Pagamento': 'Forma de Pagamento',
+    'Colaboradores|Gênero': 'Gênero',
+    'Contratações|Status': 'Status Contratação',
+    'Solicitações|Status': 'Status Solicitação'
+  };
+
+  function montarCampos() {
+    var headers = estado.estrutura.abas[sel.value];
+    var colunaIdAuto = ID_AUTO_POR_ABA[sel.value];
+    var listas = estado.estrutura.listas || {};
+    document.getElementById('campos-lancar').innerHTML = headers.map(function (h) {
+      if (h === colunaIdAuto) {
         return '<label style="font-size:12px;color:var(--muted);">' + h +
-          '<input type="' + inputTipo + '" data-campo="' + h + '" style="margin-top:4px;"></label>';
-      }).join('');
-    }
-    sel.addEventListener('change', montarCampos);
+          '<input type="text" disabled placeholder="(gerado automaticamente ao salvar)" style="margin-top:4px;background:#F5F5F5;"></label>';
+      }
+      var nomeLista = LISTA_POR_CAMPO[sel.value + '|' + h];
+      if (nomeLista && listas[nomeLista] && listas[nomeLista].length) {
+        return '<label style="font-size:12px;color:var(--muted);">' + h +
+          '<select data-campo="' + h + '" style="margin-top:4px;"><option value=""></option>' +
+          listas[nomeLista].map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('') +
+          '</select></label>';
+      }
+      var tipo = tipoCampo(h);
+      if (tipo === 'cliente') {
+        return '<label style="font-size:12px;color:var(--muted);">' + h +
+          '<select data-campo="' + h + '" style="margin-top:4px;">' +
+          estado.dados.clientes.map(function (c) { return '<option value="' + c.id + '">' + c.nome + '</option>'; }).join('') +
+          '</select></label>';
+      }
+      var inputTipo = tipo === 'date' ? 'date' : (tipo === 'number' ? 'number' : 'text');
+      return '<label style="font-size:12px;color:var(--muted);">' + h +
+        '<input type="' + inputTipo + '" data-campo="' + h + '" style="margin-top:4px;"></label>';
+    }).join('');
+  }
+  sel.addEventListener('change', montarCampos);
     montarCampos();
 
     document.getElementById('btn-lancar').addEventListener('click', function () {
