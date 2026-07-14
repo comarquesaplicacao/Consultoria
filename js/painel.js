@@ -438,6 +438,9 @@
     var vagasFiltradas = estado.filtroStatusVaga === 'todos' ? f.servicos : f.servicos.filter(function (s) { return s.status === estado.filtroStatusVaga; });
     var porStatus = agruparContagem(vagasFiltradas, 'status');
     var contratadosPorTipo = agruparContagem(vagasFiltradas.filter(function (s) { return s.status === 'Contratado'; }), 'tipoVaga');
+    var vagasOrdenadasPorStatus = vagasFiltradas.slice().sort(function (a, b) {
+      return String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR');
+    });
     return secTitle('Vagas', vagasFiltradas.length + ' de ' + f.servicos.length + ' vaga(s) no período') +
       '<div class="filtro-grupo" style="margin-bottom:16px;"><span>Status</span><select id="filtro-status-vaga">' +
       '<option value="todos"' + (estado.filtroStatusVaga === 'todos' ? ' selected' : '') + '>Todos os status</option>' +
@@ -449,8 +452,8 @@
       '</div>' +
       '<div class="card" style="margin-top:24px;"><h3>Vagas' + (estado.filtroStatusVaga === 'todos' ? '' : ' — ' + estado.filtroStatusVaga) + '</h3>' +
       tabelaComExport('vagas', ['Cargo', 'Cliente', 'Candidatados', 'Entrevistados', 'Dias em Aberto', 'Status'],
-        vagasFiltradas.map(function (s) { return [s.cargo, s.clienteNome, formatarNumero(s.candidatados), formatarNumero(s.entrevistados), diasEmAberto(s), badge(s.status)]; }),
-        vagasFiltradas.map(function (s) { return [s.cargo, s.clienteNome, s.candidatados, s.entrevistados, diasEmAberto(s), s.status]; })) +
+        vagasOrdenadasPorStatus.map(function (s) { return [s.cargo, s.clienteNome, formatarNumero(s.candidatados), formatarNumero(s.entrevistados), diasEmAberto(s), badge(s.status)]; }),
+        vagasOrdenadasPorStatus.map(function (s) { return [s.cargo, s.clienteNome, s.candidatados, s.entrevistados, diasEmAberto(s), s.status]; })) +
       '</div>';
   }
   renderVagas.html = renderVagas;
