@@ -159,6 +159,47 @@
     return '<table><thead><tr>' + cabecalhos.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead>' +
       '<tbody>' + linhas.map(function (l) { return '<tr>' + l.map(function (v) { return '<td>' + v + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
   }
+
+  /* ---- Exportar tabela em CSV ---- */
+  window.TABELAS_EXPORT = window.TABELAS_EXPORT || {};
+  function registrarExport(id, cabecalhos, linhasCru) {
+    window.TABELAS_EXPORT[id] = { cabecalhos: cabecalhos, linhas: linhasCru };
+  }
+  function paraCSV(cabecalhos, linhas) {
+    function esc(v) {
+      v = (v === null || v === undefined) ? '' : String(v);
+      if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1 || v.indexOf('\n') !== -1) v = '"' + v.replace(/"/g, '""') + '"';
+      return v;
+    }
+    var out = [cabecalhos.map(esc).join(',')];
+    linhas.forEach(function (l) { out.push(l.map(esc).join(',')); });
+    return out.join('\r\n');
+  }
+  window.exportarTabela = function (id) {
+    var d = window.TABELAS_EXPORT[id];
+    if (!d || !d.linhas.length) return;
+    var csv = paraCSV(d.cabecalhos, d.linhas);
+    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM: acentos abrem certo no Excel
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = id + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  function botaoExportar(id) {
+    return '<button type="button" class="btn-export" onclick="exportarTabela(\'' + id + '\')" ' +
+      'style="background:none;border:1px solid var(--line);color:var(--accent);padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;">⬇ Exportar CSV</button>';
+  }
+  /**
+   * Tabela com botão de exportar. cabecalhos/linhasExibicao = o que aparece na tela (com badges etc.);
+   * linhasCru = valores simples (texto puro) que vão pro CSV, na mesma ordem das colunas.
+   */
+  function tabelaComExport(id, cabecalhos, linhasExibicao, linhasCru) {
+    registrarExport(id, cabecalhos, linhasCru);
+    var titulo = '<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">' + botaoExportar(id) + '</div>';
+    return titulo + tabela(cabecalhos, linhasExibicao);
+  }
+
   function badge(status) {
     var s = String(status || '').toLowerCase(); var classe = 'ok';
     if (s.indexOf('suspens') !== -1 || s.indexOf('reprov') !== -1) classe = 'alerta';
@@ -293,7 +334,9 @@
       '</div>' +
       '<div class="kpi-row" style="margin-top:24px;">' + kpi('Vagas em aberto', vagasAbertas) + kpi('Tempo médio de contratação', tempoMedio !== null ? tempoMedio + ' dia(s)' : '—') + kpi('Vagas no filtro', servicosFiltrados.length) + '</div>' +
       '<div class="card" style="margin-top:24px;"><h3>Vagas do período</h3>' +
-      tabela(['Cargo', 'Cliente', 'Tipo de vaga', 'Status'], servicosFiltrados.map(function (s) { return [s.cargo, s.clienteNome, s.tipoVaga, badge(s.status)]; })) +
+      tabelaComExport('vagas_operacional', ['Cargo', 'Cliente', 'Tipo de vaga', 'Status'],
+        servicosFiltrados.map(function (s) { return [s.cargo, s.clienteNome, s.tipoVaga, badge(s.status)]; }),
+        servicosFiltrados.map(function (s) { return [s.cargo, s.clienteNome, s.tipoVaga, s.status]; })) +
       '</div>';
   }
   renderOperacional.html = renderOperacional;
@@ -328,7 +371,9 @@
       '<div class="card"><h3>Valor por categoria</h3>' + ranking(porCategoria) + '</div>' +
       '</div>' +
       '<div class="card" style="margin-top:24px;"><h3>Orçamentos do período</h3>' +
-      tabela(['Cliente', 'Categoria', 'Valor', 'Status'], orcamentosFiltrados.map(function (o) { return [o.clienteNome, o.categoria, formatarMoeda(o.valor), badge(o.status)]; })) +
+      tabelaComExport('orcamentos_comercial', ['Cliente', 'Categoria', 'Valor', 'Status'],
+        orcamentosFiltrados.map(function (o) { return [o.clienteNome, o.categoria, formatarMoeda(o.valor), badge(o.status)]; }),
+        orcamentosFiltrados.map(function (o) { return [o.clienteNome, o.categoria, o.valor, o.status]; })) +
       '</div>';
   }
   renderComercial.html = renderComercial;
@@ -355,10 +400,15 @@
       '<div class="card" style="margin-top:24px;"><h3>Faturamento por cliente</h3><canvas id="chart-clientes-faturamento" height="220"></canvas></div>' +
       '<div class="card" style="margin-top:24px;"><h3>Cadastro e rentabilidade</h3>' +
       '<p style="color:var(--muted);font-size:12px;margin-top:-8px;margin-bottom:14px;">Custo direto = despesas ligadas a vagas desse cliente (via Id Vaga). Não inclui despesas gerais da consultoria.</p>' +
-      tabela(['Empresa', 'Segmento', 'Faturamento', 'Custo direto', 'Margem', 'Situação'], f.clientes.map(function (c) {
-        var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0;
-        return [c.nome, c.segmento, formatarMoeda(receita), formatarMoeda(custo), formatarMoeda(receita - custo), c.termino ? badge('Encerrado') : badge('Ativo')];
-      })) +
+      tabelaComExport('clientes_cadastro', ['Empresa', 'Segmento', 'Faturamento', 'Custo direto', 'Margem', 'Situação'],
+        f.clientes.map(function (c) {
+          var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0;
+          return [c.nome, c.segmento, formatarMoeda(receita), formatarMoeda(custo), formatarMoeda(receita - custo), c.termino ? badge('Encerrado') : badge('Ativo')];
+        }),
+        f.clientes.map(function (c) {
+          var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0;
+          return [c.nome, c.segmento, receita, custo, receita - custo, c.termino ? 'Encerrado' : 'Ativo'];
+        })) +
       '</div>';
   }
   renderClientes.html = renderClientes;
@@ -398,8 +448,9 @@
       donutCard('Contratações por tipo de vaga', 'chart-vagas-tipo', contratadosPorTipo, PALETA_DONUT) +
       '</div>' +
       '<div class="card" style="margin-top:24px;"><h3>Vagas' + (estado.filtroStatusVaga === 'todos' ? '' : ' — ' + estado.filtroStatusVaga) + '</h3>' +
-      tabela(['Cargo', 'Cliente', 'Candidatados', 'Entrevistados', 'Dias em Aberto', 'Status'],
-        vagasFiltradas.map(function (s) { return [s.cargo, s.clienteNome, formatarNumero(s.candidatados), formatarNumero(s.entrevistados), diasEmAberto(s), badge(s.status)]; })) +
+      tabelaComExport('vagas', ['Cargo', 'Cliente', 'Candidatados', 'Entrevistados', 'Dias em Aberto', 'Status'],
+        vagasFiltradas.map(function (s) { return [s.cargo, s.clienteNome, formatarNumero(s.candidatados), formatarNumero(s.entrevistados), diasEmAberto(s), badge(s.status)]; }),
+        vagasFiltradas.map(function (s) { return [s.cargo, s.clienteNome, s.candidatados, s.entrevistados, diasEmAberto(s), s.status]; })) +
       '</div>';
   }
   renderVagas.html = renderVagas;
@@ -422,23 +473,25 @@
     var meses = Array.from(new Set(Object.keys(realizadoMap).concat(Object.keys(metaMap)))).sort();
     var linhas = meses.map(function (mk) {
       var meta = metaMap[mk] || 0, real = realizadoMap[mk] || 0, pct = meta ? Math.round(real / meta * 100) : null;
-      var statusHtml;
+      var statusHtml, statusTexto;
       if (pct === null) {
-        statusHtml = '—';
+        statusHtml = '—'; statusTexto = '—';
       } else if (mk > mesAtual) {
-        statusHtml = '<span class="badge neutro">Ainda não chegou</span>';
+        statusHtml = '<span class="badge neutro">Ainda não chegou</span>'; statusTexto = 'Ainda não chegou';
       } else if (pct >= 100) {
-        statusHtml = badge('Cumprida (' + pct + '%)');
+        statusHtml = badge('Cumprida (' + pct + '%)'); statusTexto = 'Cumprida (' + pct + '%)';
       } else if (mk === mesAtual) {
-        statusHtml = '<span class="badge pendente">Em andamento (' + pct + '%)</span>';
+        statusHtml = '<span class="badge pendente">Em andamento (' + pct + '%)</span>'; statusTexto = 'Em andamento (' + pct + '%)';
       } else {
-        statusHtml = '<span class="badge alerta">Não atingida (' + pct + '%)</span>';
+        statusHtml = '<span class="badge alerta">Não atingida (' + pct + '%)</span>'; statusTexto = 'Não atingida (' + pct + '%)';
       }
-      return [rotuloMes(mk), formatarMoeda(meta), formatarMoeda(real), statusHtml];
+      return { exibicao: [rotuloMes(mk), formatarMoeda(meta), formatarMoeda(real), statusHtml], cru: [rotuloMes(mk), meta, real, statusTexto] };
     });
     return secTitle('Metas', 'Meta da consultoria (global) x realizado no filtro atual') +
       '<div class="card"><h3>Meta x realizado</h3><canvas id="chart-metas" height="150"></canvas></div>' +
-      '<div class="card" style="margin-top:24px;"><h3>Detalhe por mês</h3>' + tabela(['Mês', 'Meta', 'Realizado', 'Cumprimento'], linhas) + '</div>';
+      '<div class="card" style="margin-top:24px;"><h3>Detalhe por mês</h3>' +
+      tabelaComExport('metas_detalhe', ['Mês', 'Meta', 'Realizado', 'Cumprimento'], linhas.map(function (l) { return l.exibicao; }), linhas.map(function (l) { return l.cru; })) +
+      '</div>';
   }
   renderMetas.html = renderMetas;
   renderMetas.chart = function (f) {
@@ -456,9 +509,9 @@
     var lista = estado.dados.solicitacoes || [];
     return secTitle('Solicitações dos clientes', lista.length + ' registro(s) — não segue o filtro de período/cliente') +
       '<div class="card">' +
-      tabela(['Data', 'Empresa', 'Categoria', 'Resumo', 'Status'], lista.map(function (s) {
-        return [s.timestamp ? formatarDataHora(s.timestamp) : '—', s.empresa, s.categoria, s.resumo, badge(s.status)];
-      })) +
+      tabelaComExport('solicitacoes', ['Data', 'Empresa', 'Categoria', 'Resumo', 'Status'],
+        lista.map(function (s) { return [s.timestamp ? formatarDataHora(s.timestamp) : '—', s.empresa, s.categoria, s.resumo, badge(s.status)]; }),
+        lista.map(function (s) { return [s.timestamp ? formatarDataHora(s.timestamp) : '—', s.empresa, s.categoria, s.resumo, s.status]; })) +
       '<p style="color:var(--muted);font-size:12px;margin-top:14px;">Pra marcar como atendida, edite a coluna "Status" direto na aba Solicitações da planilha.</p>' +
       '</div>';
   }
