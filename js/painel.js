@@ -372,6 +372,16 @@
     });
   };
 
+  function diasEmAberto(s) {
+    if (!s.abertura) return '—';
+    var inicio = new Date(s.abertura);
+    if (isNaN(inicio)) return '—';
+    var fim = s.fechamento ? new Date(s.fechamento) : new Date();
+    var dias = Math.round((fim - inicio) / 86400000);
+    if (dias < 0) return '—';
+    return dias + (s.fechamento ? ' (fechada)' : ' (em aberto)');
+  }
+
   // ---- Vagas ----
   function renderVagas(f) {
     var statusDisponiveis = Array.from(new Set(f.servicos.map(function (s) { return s.status; }))).filter(Boolean);
@@ -388,7 +398,8 @@
       donutCard('Contratações por tipo de vaga', 'chart-vagas-tipo', contratadosPorTipo, PALETA_DONUT) +
       '</div>' +
       '<div class="card" style="margin-top:24px;"><h3>Vagas' + (estado.filtroStatusVaga === 'todos' ? '' : ' — ' + estado.filtroStatusVaga) + '</h3>' +
-      tabela(['Cargo', 'Cliente', 'Candidatados', 'Entrevistados', 'Status'], vagasFiltradas.map(function (s) { return [s.cargo, s.clienteNome, formatarNumero(s.candidatados), formatarNumero(s.entrevistados), badge(s.status)]; })) +
+      tabela(['Cargo', 'Cliente', 'Candidatados', 'Entrevistados', 'Dias em Aberto', 'Status'],
+        vagasFiltradas.map(function (s) { return [s.cargo, s.clienteNome, formatarNumero(s.candidatados), formatarNumero(s.entrevistados), diasEmAberto(s), badge(s.status)]; })) +
       '</div>';
   }
   renderVagas.html = renderVagas;
