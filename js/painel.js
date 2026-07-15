@@ -539,7 +539,7 @@
   function tipoCampo(header) {
     var h = header.toLowerCase();
     if (/cliente|empresa/.test(h) && /id|cliente$/.test(h)) return 'cliente';
-    if (/data|início|inicio|fechamento|admiss|demiss|nascimento|abertura|t[eé]rmino/.test(h)) return 'date';
+    if (/\bdata\b|início|inicio|fechamento|admiss|demiss|nascimento|abertura|t[eé]rmino/.test(h)) return 'date';
     if (/valor|sal[aá]rio|qtda|parcela|remunera|candidatados|entrevistados|sla|filhos|^ano$/.test(h)) return 'number';
     return 'text';
   }
