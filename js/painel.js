@@ -317,9 +317,13 @@
 
     var candidatados = somar(servicosFiltrados, 'candidatados'), entrevistados = somar(servicosFiltrados, 'entrevistados');
     var contratados = servicosFiltrados.filter(function (s) { return s.status === 'Contratado'; });
-    var vagasAbertas = servicosFiltrados.filter(function (s) { return s.status !== 'Contratado' && s.status !== 'Suspensa'; }).length;
+    var abertas = servicosFiltrados.filter(function (s) { return s.status !== 'Contratado' && s.status !== 'Suspensa'; });
     var temposDias = contratados.filter(function (s) { return s.abertura && s.fechamento; }).map(function (s) { return Math.round((new Date(s.fechamento) - new Date(s.abertura)) / 86400000); });
     var tempoMedio = temposDias.length ? Math.round(temposDias.reduce(function (a, b) { return a + b; }, 0) / temposDias.length) : null;
+    var temposAbertas = abertas.filter(function (s) { return s.abertura; }).map(function (s) { return Math.round((new Date() - new Date(s.abertura)) / 86400000); });
+    var tempoMedioAberto = temposAbertas.length ? Math.round(temposAbertas.reduce(function (a, b) { return a + b; }, 0) / temposAbertas.length) : null;
+    var porTipoVaga = agruparContagem(servicosFiltrados, 'tipoVaga');
+
     return secTitle('Operacional', servicosFiltrados.length + ' de ' + f.servicos.length + ' vaga(s) no período') +
       '<div class="filtro-grupo" style="margin-bottom:16px;gap:16px;">' +
       '<span>Tipo de vaga</span><select id="filtro-tipo-vaga-op"><option value="todos"' + (estado.filtroTipoVagaOp === 'todos' ? ' selected' : '') + '>Todos</option>' +
@@ -332,15 +336,24 @@
       '<div class="funil-etapa"><div class="label">Entrevistados</div><div class="value">' + formatarNumero(entrevistados) + '</div><div class="taxa">' + (candidatados ? Math.round(entrevistados / candidatados * 100) : 0) + '% dos candidatados</div></div>' +
       '<div class="funil-etapa"><div class="label">Contratados</div><div class="value">' + formatarNumero(contratados.length) + '</div><div class="taxa">' + (entrevistados ? Math.round(contratados.length / entrevistados * 100) : 0) + '% dos entrevistados</div></div>' +
       '</div>' +
-      '<div class="kpi-row" style="margin-top:24px;">' + kpi('Vagas em aberto', vagasAbertas) + kpi('Tempo médio de contratação', tempoMedio !== null ? tempoMedio + ' dia(s)' : '—') + kpi('Vagas no filtro', servicosFiltrados.length) + '</div>' +
-      '<div class="card" style="margin-top:24px;"><h3>Vagas do período</h3>' +
+      '<div class="kpi-row" style="margin-top:24px;">' + kpi('Vagas em aberto', abertas.length) +
+      kpi('Tempo médio de contratação', tempoMedio !== null ? tempoMedio + ' dia(s)' : '—') +
+      kpi('Tempo médio das vagas ainda abertas', tempoMedioAberto !== null ? tempoMedioAberto + ' dia(s)' : '—') +
+      kpi('Vagas no filtro', servicosFiltrados.length) + '</div>' +
+      '<div class="grid-2" style="margin-top:24px;">' +
+      donutCard('Vagas por tipo', 'chart-op-tipo', porTipoVaga, PALETA_DONUT) +
+      '<div class="card"><h3>Vagas do período</h3>' +
       tabelaComExport('vagas_operacional', ['Cargo', 'Cliente', 'Tipo de vaga', 'Status'],
         servicosFiltrados.map(function (s) { return [s.cargo, s.clienteNome, s.tipoVaga, badge(s.status)]; }),
         servicosFiltrados.map(function (s) { return [s.cargo, s.clienteNome, s.tipoVaga, s.status]; })) +
-      '</div>';
+      '</div></div>';
   }
   renderOperacional.html = renderOperacional;
-  renderOperacional.chart = function () {
+  renderOperacional.chart = function (f) {
+    var servicosFiltrados = f.servicos
+      .filter(function (s) { return estado.filtroTipoVagaOp === 'todos' || s.tipoVaga === estado.filtroTipoVagaOp; })
+      .filter(function (s) { return estado.filtroStatusOp === 'todos' || s.status === estado.filtroStatusOp; });
+    desenharDonut('chart-op-tipo', agruparContagem(servicosFiltrados, 'tipoVaga'), PALETA_DONUT);
     document.getElementById('filtro-tipo-vaga-op').addEventListener('change', function (e) { estado.filtroTipoVagaOp = e.target.value; renderAba(); });
     document.getElementById('filtro-status-op').addEventListener('change', function (e) { estado.filtroStatusOp = e.target.value; renderAba(); });
   };
@@ -402,12 +415,14 @@
       '<p style="color:var(--muted);font-size:12px;margin-top:-8px;margin-bottom:14px;">Custo direto = despesas ligadas a vagas desse cliente (via Id Vaga). Não inclui despesas gerais da consultoria.</p>' +
       tabelaComExport('clientes_cadastro', ['Empresa', 'Segmento', 'Faturamento', 'Custo direto', 'Margem', 'Situação'],
         f.clientes.map(function (c) {
-          var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0;
-          return [c.nome, c.segmento, formatarMoeda(receita), formatarMoeda(custo), formatarMoeda(receita - custo), c.termino ? badge('Encerrado') : badge('Ativo')];
+          var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0, margem = receita - custo;
+          var pct = receita ? Math.round(margem / receita * 100) : null;
+          return [c.nome, c.segmento, formatarMoeda(receita), formatarMoeda(custo), formatarMoeda(margem) + (pct !== null ? ' (' + pct + '%)' : ''), c.termino ? badge('Encerrado') : badge('Ativo')];
         }),
         f.clientes.map(function (c) {
-          var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0;
-          return [c.nome, c.segmento, receita, custo, receita - custo, c.termino ? 'Encerrado' : 'Ativo'];
+          var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0, margem = receita - custo;
+          var pct = receita ? Math.round(margem / receita * 100) : null;
+          return [c.nome, c.segmento, receita, custo, margem + (pct !== null ? ' (' + pct + '%)' : ''), c.termino ? 'Encerrado' : 'Ativo'];
         })) +
       '</div>';
   }
@@ -529,9 +544,25 @@
     return 'text';
   }
 
+  function paraInputDate(v) {
+    if (!v) return '';
+    var d = new Date(v);
+    if (isNaN(d)) return '';
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+  }
+  function formatarValorCelula(v) {
+    if (v === null || v === undefined || v === '') return '';
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+      var d = new Date(v);
+      if (!isNaN(d)) return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    }
+    return v;
+  }
+
   function renderLancar() {
     return '<div class="section-title"><h2>Lançar dados</h2><span class="desc">Escreve direto nas abas oficiais da planilha</span></div>' +
-      '<div class="card" style="max-width:560px;" id="lancar-form-area"><p style="color:var(--muted);">Carregando estrutura das abas…</p></div>';
+      '<div class="card" style="max-width:640px;" id="lancar-form-area"><p style="color:var(--muted);">Carregando estrutura das abas…</p></div>' +
+      '<div class="card" style="margin-top:24px;" id="lancar-tabela-area"></div>';
   }
   renderLancar.html = renderLancar;
   renderLancar.chart = function () {
@@ -546,17 +577,6 @@
   };
 
   var ID_AUTO_POR_ABA = { 'Lançamentos': 'Id Lançamento', 'Vagas': 'Id Vaga', 'Contratações': 'Id Contratação', 'Colaboradores': 'Id Colaborador', 'Clientes': 'Id', 'Orçamentos': 'Id Orçamento' };
-
-  function montarFormLancar() {
-    var abas = Object.keys(estado.estrutura.abas);
-    var area = document.getElementById('lancar-form-area');
-    area.innerHTML =
-      '<select id="sel-aba-lancar">' + abas.map(function (a) { return '<option value="' + a + '">' + a + '</option>'; }).join('') + '</select>' +
-      '<div id="campos-lancar" style="margin-top:14px;display:flex;flex-direction:column;gap:10px;"></div>' +
-      '<button id="btn-lancar" style="width:100%;margin-top:14px;">Adicionar lançamento</button>' +
-      '<p class="mensagem" id="msg-lancar"></p>';
-
-    var sel = document.getElementById('sel-aba-lancar');
   var LISTA_POR_CAMPO = {
     'Clientes|Status': 'Status Cliente', 'Clientes|Formato de Cobrança': 'Formato de Cobrança',
     'Clientes|Porte': 'Porte',
@@ -573,36 +593,130 @@
     'Solicitações|Status': 'Status Solicitação'
   };
 
-  function montarCampos() {
-    var headers = estado.estrutura.abas[sel.value];
-    var colunaIdAuto = ID_AUTO_POR_ABA[sel.value];
-    var listas = estado.estrutura.listas || {};
-    document.getElementById('campos-lancar').innerHTML = headers.map(function (h) {
-      if (h === colunaIdAuto) {
+  var lancarEdicao = null; // { aba, linha } quando editando uma linha existente
+
+  function montarFormLancar() {
+    var abas = Object.keys(estado.estrutura.abas);
+    var area = document.getElementById('lancar-form-area');
+    area.innerHTML =
+      '<select id="sel-aba-lancar">' + abas.map(function (a) { return '<option value="' + a + '">' + a + '</option>'; }).join('') + '</select>' +
+      '<div id="campos-lancar" style="margin-top:14px;display:flex;flex-direction:column;gap:10px;"></div>' +
+      '<div style="display:flex;gap:10px;margin-top:14px;">' +
+      '<button id="btn-lancar" style="flex:1;">Adicionar lançamento</button>' +
+      '<button id="btn-cancelar-edicao" type="button" style="display:none;background:var(--surface);color:var(--ink);border:1px solid var(--line);">Cancelar edição</button>' +
+      '</div>' +
+      '<p class="mensagem" id="msg-lancar"></p>';
+
+    var sel = document.getElementById('sel-aba-lancar');
+
+    function montarCampos() {
+      var headers = estado.estrutura.abas[sel.value];
+      var colunaIdAuto = ID_AUTO_POR_ABA[sel.value];
+      var listas = estado.estrutura.listas || {};
+      document.getElementById('campos-lancar').innerHTML = headers.map(function (h) {
+        if (h === colunaIdAuto) {
+          return '<label style="font-size:12px;color:var(--muted);">' + h +
+            '<input type="text" data-campo="' + h + '" disabled placeholder="(gerado automaticamente ao salvar)" style="margin-top:4px;background:#F5F5F5;"></label>';
+        }
+        var nomeLista = LISTA_POR_CAMPO[sel.value + '|' + h];
+        if (nomeLista && listas[nomeLista] && listas[nomeLista].length) {
+          return '<label style="font-size:12px;color:var(--muted);">' + h +
+            '<select data-campo="' + h + '" style="margin-top:4px;"><option value=""></option>' +
+            listas[nomeLista].map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('') +
+            '</select></label>';
+        }
+        var tipo = tipoCampo(h);
+        if (tipo === 'cliente') {
+          return '<label style="font-size:12px;color:var(--muted);">' + h +
+            '<select data-campo="' + h + '" style="margin-top:4px;">' +
+            estado.dados.clientes.map(function (c) { return '<option value="' + c.id + '">' + c.nome + '</option>'; }).join('') +
+            '</select></label>';
+        }
+        var inputTipo = tipo === 'date' ? 'date' : (tipo === 'number' ? 'number' : 'text');
         return '<label style="font-size:12px;color:var(--muted);">' + h +
-          '<input type="text" disabled placeholder="(gerado automaticamente ao salvar)" style="margin-top:4px;background:#F5F5F5;"></label>';
-      }
-      var nomeLista = LISTA_POR_CAMPO[sel.value + '|' + h];
-      if (nomeLista && listas[nomeLista] && listas[nomeLista].length) {
-        return '<label style="font-size:12px;color:var(--muted);">' + h +
-          '<select data-campo="' + h + '" style="margin-top:4px;"><option value=""></option>' +
-          listas[nomeLista].map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('') +
-          '</select></label>';
-      }
-      var tipo = tipoCampo(h);
-      if (tipo === 'cliente') {
-        return '<label style="font-size:12px;color:var(--muted);">' + h +
-          '<select data-campo="' + h + '" style="margin-top:4px;">' +
-          estado.dados.clientes.map(function (c) { return '<option value="' + c.id + '">' + c.nome + '</option>'; }).join('') +
-          '</select></label>';
-      }
-      var inputTipo = tipo === 'date' ? 'date' : (tipo === 'number' ? 'number' : 'text');
-      return '<label style="font-size:12px;color:var(--muted);">' + h +
-        '<input type="' + inputTipo + '" data-campo="' + h + '" style="margin-top:4px;"></label>';
-    }).join('');
-  }
-  sel.addEventListener('change', montarCampos);
+          '<input type="' + inputTipo + '" data-campo="' + h + '" style="margin-top:4px;"></label>';
+      }).join('');
+    }
+
+    function sairDoModoEdicao() {
+      lancarEdicao = null;
+      document.getElementById('btn-lancar').textContent = 'Adicionar lançamento';
+      document.getElementById('btn-cancelar-edicao').style.display = 'none';
+      montarCampos();
+    }
+
+    function preencherFormulario(linha) {
+      document.querySelectorAll('#campos-lancar [data-campo]').forEach(function (el) {
+        var h = el.getAttribute('data-campo');
+        var v = linha.hasOwnProperty(h) ? linha[h] : '';
+        if (el.tagName === 'SELECT') el.value = (v === null || v === undefined) ? '' : String(v);
+        else if (el.type === 'date') el.value = paraInputDate(v);
+        else el.value = (v === null || v === undefined) ? '' : v;
+      });
+    }
+
+    function carregarTabela(nomeAba) {
+      var areaTabela = document.getElementById('lancar-tabela-area');
+      areaTabela.innerHTML = '<p style="color:var(--muted);">Carregando registros…</p>';
+      chamarAppsScript({ action: 'dadosaba', aba: nomeAba, chave: pegarChaveSalva() }).then(function (res) {
+        if (res.erro) { areaTabela.innerHTML = '<p class="mensagem erro">' + res.erro + '</p>'; return; }
+        renderTabelaAba(nomeAba, res.headers, res.linhas);
+      }).catch(function (err) {
+        areaTabela.innerHTML = '<p class="mensagem erro">' + err.message + '</p>';
+      });
+    }
+
+    function renderTabelaAba(nomeAba, headers, linhas) {
+      var areaTabela = document.getElementById('lancar-tabela-area');
+      areaTabela.innerHTML = '<h3>Registros em "' + nomeAba + '" (' + linhas.length + ')</h3>' +
+        '<div style="overflow-x:auto;"><table><thead><tr>' +
+        headers.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '<th>Ações</th>' +
+        '</tr></thead><tbody>' +
+        linhas.map(function (l) {
+          return '<tr>' + headers.map(function (h) { return '<td>' + formatarValorCelula(l[h]) + '</td>'; }).join('') +
+            '<td style="white-space:nowrap;">' +
+            '<button type="button" class="btn-editar-linha" data-linha="' + l._linha + '" style="padding:4px 10px;font-size:12px;margin-right:6px;">Editar</button>' +
+            '<button type="button" class="btn-excluir-linha" data-linha="' + l._linha + '" style="padding:4px 10px;font-size:12px;background:var(--danger);">Excluir</button>' +
+            '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+      areaTabela.querySelectorAll('.btn-editar-linha').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var linhaNum = parseInt(btn.getAttribute('data-linha'), 10);
+          var linha = linhas.find(function (l) { return l._linha === linhaNum; });
+          if (!linha) return;
+          lancarEdicao = { aba: nomeAba, linha: linhaNum };
+          montarCampos();
+          preencherFormulario(linha);
+          document.getElementById('btn-lancar').textContent = 'Salvar edição';
+          document.getElementById('btn-cancelar-edicao').style.display = 'block';
+          document.getElementById('lancar-form-area').scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+      areaTabela.querySelectorAll('.btn-excluir-linha').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (!confirm('Tem certeza que quer excluir essa linha? Não tem como desfazer.')) return;
+          var linhaNum = parseInt(btn.getAttribute('data-linha'), 10);
+          btn.disabled = true; btn.textContent = 'Excluindo…';
+          enviarAppsScript({ action: 'adminExcluirLinha', chave: pegarChaveSalva(), aba: nomeAba, linha: linhaNum })
+            .then(function (res) {
+              if (res.erro) { alert(res.erro); btn.disabled = false; btn.textContent = 'Excluir'; return; }
+              if (lancarEdicao && lancarEdicao.aba === nomeAba && lancarEdicao.linha === linhaNum) sairDoModoEdicao();
+              carregarTabela(nomeAba);
+            })
+            .catch(function (err) { alert(err.message); btn.disabled = false; btn.textContent = 'Excluir'; });
+        });
+      });
+    }
+
+    sel.addEventListener('change', function () {
+      sairDoModoEdicao();
+      carregarTabela(sel.value);
+    });
+    document.getElementById('btn-cancelar-edicao').addEventListener('click', sairDoModoEdicao);
+
     montarCampos();
+    carregarTabela(sel.value);
 
     document.getElementById('btn-lancar').addEventListener('click', function () {
       var nomeAba = sel.value;
@@ -614,17 +728,23 @@
       });
       var msg = document.getElementById('msg-lancar');
       var btn = document.getElementById('btn-lancar');
-      btn.disabled = true; btn.textContent = 'Salvando…';
+      var editando = !!lancarEdicao;
+      btn.disabled = true; btn.textContent = editando ? 'Salvando…' : 'Salvando…';
 
-      enviarAppsScript({ action: 'adminLancar', chave: pegarChaveSalva(), aba: nomeAba, campos: campos })
+      var payload = editando
+        ? { action: 'adminEditarLinha', chave: pegarChaveSalva(), aba: nomeAba, linha: lancarEdicao.linha, campos: campos }
+        : { action: 'adminLancar', chave: pegarChaveSalva(), aba: nomeAba, campos: campos };
+
+      enviarAppsScript(payload)
         .then(function (res) {
-          btn.disabled = false; btn.textContent = 'Adicionar lançamento';
-          if (res.erro) { msg.textContent = res.erro; msg.className = 'mensagem erro'; return; }
-          msg.textContent = res.mensagem + ' Recarregue a aba pra ver refletido nos números.'; msg.className = 'mensagem sucesso';
-          montarCampos();
+          btn.disabled = false;
+          if (res.erro) { btn.textContent = editando ? 'Salvar edição' : 'Adicionar lançamento'; msg.textContent = res.erro; msg.className = 'mensagem erro'; return; }
+          msg.textContent = res.mensagem; msg.className = 'mensagem sucesso';
+          if (editando) sairDoModoEdicao(); else { btn.textContent = 'Adicionar lançamento'; montarCampos(); }
+          carregarTabela(nomeAba);
         })
         .catch(function (err) {
-          btn.disabled = false; btn.textContent = 'Adicionar lançamento';
+          btn.disabled = false; btn.textContent = editando ? 'Salvar edição' : 'Adicionar lançamento';
           msg.textContent = err.message; msg.className = 'mensagem erro';
         });
     });
