@@ -111,6 +111,7 @@
       saida: d.saida.filter(function (r) { return dentroPeriodo(monthKeyISO(r.data)) && (estado.clienteId === 'todos' || r.idCliente === null || String(r.idCliente) === String(estado.clienteId)); }),
       orcamentos: d.orcamentos.filter(function (o) { return dentroPeriodo(monthKeyISO(o.fechamento || o.inicio)) && mesmoCliente(o.idCliente); }),
       servicos: d.servicos.filter(function (s) { return dentroPeriodo(monthKeyISO(s.abertura || s.fechamento)) && mesmoCliente(s.idCliente); }),
+      contratacoes: (d.contratacoes || []).filter(function (c) { return dentroPeriodo(monthKeyISO(c.admissao)) && mesmoCliente(c.idCliente); }),
       metas: d.metas.filter(function (m) { return dentroPeriodo(m.ano + '-' + String(m.mesIndex + 1).padStart(2, '0')); }),
       clientes: estado.clienteId === 'todos' ? d.clientes : d.clientes.filter(function (c) { return String(c.id) === String(estado.clienteId); })
     };
@@ -324,6 +325,10 @@
     var tempoMedioAberto = temposAbertas.length ? Math.round(temposAbertas.reduce(function (a, b) { return a + b; }, 0) / temposAbertas.length) : null;
     var porTipoVaga = agruparContagem(servicosFiltrados, 'tipoVaga');
 
+    var totalContratacoes = f.contratacoes.length;
+    var demitidos = f.contratacoes.filter(function (c) { return String(c.status || '').trim() === 'Demitido'; }).length;
+    var assertividade = totalContratacoes ? Math.round((totalContratacoes - demitidos) / totalContratacoes * 100) : null;
+
     return secTitle('Operacional', servicosFiltrados.length + ' de ' + f.servicos.length + ' vaga(s) no período') +
       '<div class="filtro-grupo" style="margin-bottom:16px;gap:16px;">' +
       '<span>Tipo de vaga</span><select id="filtro-tipo-vaga-op"><option value="todos"' + (estado.filtroTipoVagaOp === 'todos' ? ' selected' : '') + '>Todos</option>' +
@@ -339,7 +344,9 @@
       '<div class="kpi-row" style="margin-top:24px;">' + kpi('Vagas em aberto', abertas.length) +
       kpi('Tempo médio de contratação', tempoMedio !== null ? tempoMedio + ' dia(s)' : '—') +
       kpi('Tempo médio das vagas ainda abertas', tempoMedioAberto !== null ? tempoMedioAberto + ' dia(s)' : '—') +
+      kpi('Nível de assertividade', assertividade !== null ? assertividade + '%' : '—', assertividade !== null ? (assertividade >= 80 ? 'positivo' : (assertividade < 60 ? 'negativo' : '')) : '') +
       kpi('Vagas no filtro', servicosFiltrados.length) + '</div>' +
+      '<p style="color:var(--muted);font-size:12px;margin-top:-14px;margin-bottom:20px;">Assertividade = (contratações − desligamentos) ÷ contratações, considerando quem foi admitido no período filtrado (' + totalContratacoes + ' contratação(ões), ' + demitidos + ' desligamento(s)).</p>' +
       '<div class="grid-2" style="margin-top:24px;">' +
       donutCard('Vagas por tipo', 'chart-op-tipo', porTipoVaga, PALETA_DONUT) +
       '<div class="card"><h3>Vagas do período</h3>' +
