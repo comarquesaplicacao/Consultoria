@@ -66,6 +66,9 @@
   function montarApp() {
     document.querySelector('.wrap').style.maxWidth = '980px';
     document.getElementById('conteudo').innerHTML =
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">' +
+      '<button id="btn-sair" type="button" style="background:var(--surface);color:var(--ink);border:1px solid var(--line);padding:8px 16px;font-size:13px;">Sair</button>' +
+      '</div>' +
       '<div class="card" style="max-width:640px;"><h3>Novo lançamento</h3>' +
       '<div id="campos-lanc" style="margin-top:14px;display:flex;flex-direction:column;gap:10px;"></div>' +
       '<div style="display:flex;gap:10px;margin-top:14px;">' +
@@ -74,6 +77,10 @@
       '</div><p class="mensagem" id="msg-form"></p></div>' +
       '<div class="card" style="margin-top:24px;" id="area-tabela"></div>';
 
+    document.getElementById('btn-sair').addEventListener('click', function () {
+      localStorage.removeItem(CHAVE_KEY);
+      location.reload();
+    });
     montarCampos();
     renderTabela();
 
