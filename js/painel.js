@@ -231,33 +231,45 @@
 
   // ---- Visão geral ----
   function renderVisao(f) {
-    var faturamento = somar(f.entrada, 'valor');
+    var recebido = somar(f.entrada, 'valor');
     var despesas = somar(f.saida, 'valor');
-    var lucro = faturamento - despesas;
-    var aprovados = f.orcamentos.filter(function (o) { return String(o.status).indexOf('Aprovado') !== -1; }).length;
+    var saldoCaixa = recebido - despesas;
+    var aprovados = f.orcamentos.filter(function (o) { return String(o.status).indexOf('Aprovado') !== -1; });
+    var faturamento = somar(aprovados, 'valor');
     var totalOrc = f.orcamentos.length;
     var vagasAbertas = f.servicos.filter(function (s) { return s.status !== 'Contratado' && s.status !== 'Suspensa'; }).length;
     var contratados = f.servicos.filter(function (s) { return s.status === 'Contratado'; }).length;
 
     var statusVagas = agruparContagem(f.servicos, 'status');
 
-    return secTitle('Resumo do período', f.entrada.length + ' lançamento(s) de faturamento') +
+    return secTitle('Resumo do período', f.entrada.length + ' lançamento(s) de caixa · ' + aprovados.length + ' orçamento(s) fechado(s)') +
+
+      '<div class="section-title" style="margin-top:0;"><h2 style="font-size:15px;">Faturamento <span style="font-weight:400;color:var(--muted);">(orçamentos fechados, pela data de fechamento)</span></h2></div>' +
       '<div class="kpi-row">' +
-      kpi('Faturamento', formatarMoeda(faturamento), 'positivo') +
-      kpi('Despesas', formatarMoeda(despesas), 'negativo') +
-      kpi('Lucro', formatarMoeda(lucro), lucro >= 0 ? 'positivo' : 'negativo') +
-      kpi('Margem', faturamento ? Math.round((lucro / faturamento) * 100) + '%' : '—') +
+      kpi('Faturamento do período', formatarMoeda(faturamento), 'positivo') +
+      kpi('Orçamentos aprovados', aprovados.length + ' de ' + totalOrc) +
+      kpi('Ticket médio', formatarMoeda(aprovados.length ? faturamento / aprovados.length : 0)) +
       '</div>' +
+
+      '<div class="section-title" style="margin-top:24px;"><h2 style="font-size:15px;">Fluxo de caixa <span style="font-weight:400;color:var(--muted);">(dinheiro que entrou/saiu de fato)</span></h2></div>' +
+      '<div class="kpi-row">' +
+      kpi('Recebido', formatarMoeda(recebido), 'positivo') +
+      kpi('Despesas', formatarMoeda(despesas), 'negativo') +
+      kpi('Saldo de caixa', formatarMoeda(saldoCaixa), saldoCaixa >= 0 ? 'positivo' : 'negativo') +
+      kpi('Margem de caixa', recebido ? Math.round((saldoCaixa / recebido) * 100) + '%' : '—') +
+      '</div>' +
+      '<p style="color:var(--muted);font-size:12px;margin-top:8px;">Os dois blocos não devem ser somados entre si — faturamento é a venda fechada, fluxo de caixa é o dinheiro que já passou pela conta. Um orçamento fechado neste mês pode ser recebido em outro.</p>' +
+
       '<div class="grid-2" style="margin-top:24px;">' +
-      '<div class="card"><h3>Evolução do faturamento</h3><canvas id="chart-visao-evolucao" height="160"></canvas></div>' +
+      '<div class="card"><h3>Evolução do recebido (caixa)</h3><canvas id="chart-visao-evolucao" height="160"></canvas></div>' +
       donutCard('Vagas por status', 'chart-visao-vagas', statusVagas, PALETA_DONUT) +
       '</div>' +
       '<div class="grid-2" style="margin-top:24px;">' +
       '<div class="card"><h3>Top clientes por faturamento</h3><canvas id="chart-visao-clientes" height="200"></canvas></div>' +
       '<div class="card"><h3>Resumo do período</h3><ul class="resumo-lista">' +
       '<li>' + contratados + ' contratação(ões) fechada(s), ' + vagasAbertas + ' vaga(s) ainda em aberto</li>' +
-      '<li>' + aprovados + ' de ' + totalOrc + ' orçamento(s) aprovados (' + (totalOrc ? Math.round(aprovados / totalOrc * 100) : 0) + '%)</li>' +
-      '<li>Ticket médio de faturamento: ' + formatarMoeda(f.entrada.length ? faturamento / f.entrada.length : 0) + '</li>' +
+      '<li>' + aprovados.length + ' de ' + totalOrc + ' orçamento(s) aprovados (' + (totalOrc ? Math.round(aprovados.length / totalOrc * 100) : 0) + '%)</li>' +
+      '<li>Ticket médio de recebimento: ' + formatarMoeda(f.entrada.length ? recebido / f.entrada.length : 0) + '</li>' +
       '</ul></div></div>';
   }
   renderVisao.html = renderVisao;
@@ -266,7 +278,8 @@
     criarChart(document.getElementById('chart-visao-evolucao'), { type: 'line', data: { labels: serie.map(function (m) { return m.rotulo; }), datasets: [{ data: serie.map(function (m) { return m.valor; }), borderColor: CORES.accent, backgroundColor: 'rgba(44,95,90,0.12)', fill: true, tension: 0.3 }] }, options: { plugins: { legend: { display: false } } } });
     desenharDonut('chart-visao-vagas', agruparContagem(f.servicos, 'status'), PALETA_DONUT);
 
-    var topClientes = Object.entries(agruparSoma(f.entrada, 'clienteNome', 'valor')).map(function (e) { return { nome: e[0], valor: e[1] }; }).sort(function (a, b) { return b.valor - a.valor; }).slice(0, 8);
+    var aprovados = f.orcamentos.filter(function (o) { return String(o.status).indexOf('Aprovado') !== -1; });
+    var topClientes = Object.entries(agruparSoma(aprovados, 'clienteNome', 'valor')).map(function (e) { return { nome: e[0], valor: e[1] }; }).sort(function (a, b) { return b.valor - a.valor; }).slice(0, 8);
     criarChart(document.getElementById('chart-visao-clientes'), {
       type: 'bar',
       data: { labels: topClientes.map(function (c) { return c.nome; }), datasets: [{ data: topClientes.map(function (c) { return c.valor; }), backgroundColor: CORES.accent, borderRadius: 4 }] },
@@ -276,22 +289,38 @@
 
   // ---- Financeiro ----
   function renderFinanceiro(f) {
-    var faturamento = somar(f.entrada, 'valor'), despesas = somar(f.saida, 'valor'), lucro = faturamento - despesas;
+    var recebido = somar(f.entrada, 'valor'), despesas = somar(f.saida, 'valor'), saldoCaixa = recebido - despesas;
+    var aprovados = f.orcamentos.filter(function (o) { return String(o.status).indexOf('Aprovado') !== -1; });
+    var faturamento = somar(aprovados, 'valor');
     var despesasAtribuidas = somar(f.saida.filter(function (r) { return r.idCliente; }), 'valor');
     var despesasGerais = despesas - despesasAtribuidas;
     var porCategoriaDespesa = Object.entries(agruparSoma(f.saida, 'categoria', 'valor')).map(function (e) { return { nome: e[0], valor: e[1] }; }).sort(function (a, b) { return b.valor - a.valor; });
     var porFormaPgto = Object.entries(agruparSoma(f.entrada, 'formaPgto', 'valor')).map(function (e) { return { nome: e[0], valor: e[1] }; }).sort(function (a, b) { return b.valor - a.valor; });
-    return secTitle('Financeiro', 'Faturamento, despesas e margem no período') +
-      '<div class="kpi-row">' + kpi('Faturamento', formatarMoeda(faturamento), 'positivo') + kpi('Despesas', formatarMoeda(despesas), 'negativo') + kpi('Lucro líquido', formatarMoeda(lucro), lucro >= 0 ? 'positivo' : 'negativo') + kpi('Margem líquida', faturamento ? Math.round(lucro / faturamento * 100) + '%' : '—') + '</div>' +
+    return secTitle('Financeiro', 'Faturamento e fluxo de caixa são medidos separadamente — não some um com o outro') +
+
+      '<div class="section-title" style="margin-top:0;"><h2 style="font-size:15px;">Faturamento <span style="font-weight:400;color:var(--muted);">(orçamentos fechados, pela data de fechamento)</span></h2></div>' +
+      '<div class="kpi-row">' + kpi('Faturamento do período', formatarMoeda(faturamento), 'positivo') + kpi('Orçamentos aprovados', aprovados.length) + kpi('Ticket médio', formatarMoeda(aprovados.length ? faturamento / aprovados.length : 0)) + '</div>' +
+      '<div class="card" style="margin-top:16px;"><h3>Evolução do faturamento</h3><canvas id="chart-fin-faturamento" height="130"></canvas></div>' +
+
+      '<div class="section-title" style="margin-top:32px;"><h2 style="font-size:15px;">Fluxo de caixa <span style="font-weight:400;color:var(--muted);">(dinheiro que entrou/saiu de fato)</span></h2></div>' +
+      '<div class="kpi-row">' + kpi('Recebido', formatarMoeda(recebido), 'positivo') + kpi('Despesas', formatarMoeda(despesas), 'negativo') + kpi('Saldo de caixa', formatarMoeda(saldoCaixa), saldoCaixa >= 0 ? 'positivo' : 'negativo') + kpi('Margem de caixa', recebido ? Math.round(saldoCaixa / recebido * 100) + '%' : '—') + '</div>' +
       '<div class="kpi-row" style="margin-top:16px;">' + kpi('Despesas atribuídas a clientes', formatarMoeda(despesasAtribuidas)) + kpi('Despesas gerais (overhead)', formatarMoeda(despesasGerais)) + '</div>' +
-      '<div class="card" style="margin-top:24px;"><h3>Evolução: faturamento x despesas x lucro</h3><canvas id="chart-fin-evolucao" height="150"></canvas></div>' +
+      '<div class="card" style="margin-top:24px;"><h3>Evolução: recebido x despesas x saldo</h3><canvas id="chart-fin-evolucao" height="150"></canvas></div>' +
       '<div class="grid-2" style="margin-top:24px;">' +
       '<div class="card"><h3>Despesas por categoria</h3>' + ranking(porCategoriaDespesa) + '</div>' +
-      '<div class="card"><h3>Receita por forma de pagamento</h3>' + ranking(porFormaPgto) + '</div>' +
+      '<div class="card"><h3>Recebido por forma de pagamento</h3>' + ranking(porFormaPgto) + '</div>' +
       '</div>';
   }
   renderFinanceiro.html = renderFinanceiro;
   renderFinanceiro.chart = function (f) {
+    var aprovados = f.orcamentos.filter(function (o) { return String(o.status).indexOf('Aprovado') !== -1; });
+    var serieFat = serieMensal(aprovados.map(function (o) { return { data: o.fechamento, valor: o.valor }; }), 'data', 'valor');
+    criarChart(document.getElementById('chart-fin-faturamento'), {
+      type: 'bar',
+      data: { labels: serieFat.map(function (m) { return m.rotulo; }), datasets: [{ data: serieFat.map(function (m) { return m.valor; }), backgroundColor: CORES.accent, borderRadius: 4 }] },
+      options: { plugins: { legend: { display: false } } }
+    });
+
     var fat = serieMensal(f.entrada, 'data', 'valor');
     var desp = serieMensal(f.saida, 'data', 'valor');
     var meses = Array.from(new Set(fat.map(function (m) { return m.mes; }).concat(desp.map(function (m) { return m.mes; })))).sort();
@@ -300,9 +329,9 @@
     criarChart(document.getElementById('chart-fin-evolucao'), {
       type: 'line',
       data: { labels: meses.map(rotuloMes), datasets: [
-        { label: 'Faturamento', data: meses.map(function (m) { return fatMap[m] || 0; }), borderColor: CORES.accent, tension: 0.3 },
+        { label: 'Recebido', data: meses.map(function (m) { return fatMap[m] || 0; }), borderColor: CORES.accent, tension: 0.3 },
         { label: 'Despesas', data: meses.map(function (m) { return despMap[m] || 0; }), borderColor: CORES.danger, tension: 0.3 },
-        { label: 'Lucro', data: meses.map(function (m) { return (fatMap[m] || 0) - (despMap[m] || 0); }), borderColor: CORES.warm, tension: 0.3, borderDash: [4, 3] }
+        { label: 'Saldo de caixa', data: meses.map(function (m) { return (fatMap[m] || 0) - (despMap[m] || 0); }), borderColor: CORES.warm, tension: 0.3, borderDash: [4, 3] }
       ] },
       options: { plugins: { legend: { position: 'bottom' } } }
     });
@@ -417,10 +446,10 @@
 
     return secTitle('Clientes', f.clientes.length + ' cliente(s) no filtro atual') +
       '<div class="kpi-row">' + kpi('Total de clientes', f.clientes.length) + kpi('Ativos', ativos, 'positivo') + kpi('Encerrados', f.clientes.length - ativos, f.clientes.length - ativos ? 'negativo' : '') + '</div>' +
-      '<div class="card" style="margin-top:24px;"><h3>Faturamento por cliente</h3><canvas id="chart-clientes-faturamento" height="220"></canvas></div>' +
+      '<div class="card" style="margin-top:24px;"><h3>Recebido por cliente (caixa)</h3><canvas id="chart-clientes-faturamento" height="220"></canvas></div>' +
       '<div class="card" style="margin-top:24px;"><h3>Cadastro e rentabilidade</h3>' +
-      '<p style="color:var(--muted);font-size:12px;margin-top:-8px;margin-bottom:14px;">Custo direto = despesas ligadas a vagas desse cliente (via Id Vaga). Não inclui despesas gerais da consultoria.</p>' +
-      tabelaComExport('clientes_cadastro', ['Empresa', 'Segmento', 'Faturamento', 'Custo direto', 'Margem', 'Situação'],
+      '<p style="color:var(--muted);font-size:12px;margin-top:-8px;margin-bottom:14px;">Baseado em fluxo de caixa (o que já entrou/saiu), não em faturamento fechado. Custo direto = despesas ligadas a vagas desse cliente (via Id Vaga). Não inclui despesas gerais da consultoria.</p>' +
+      tabelaComExport('clientes_cadastro', ['Empresa', 'Segmento', 'Recebido', 'Custo direto', 'Margem', 'Situação'],
         f.clientes.map(function (c) {
           var receita = receitaPorId[c.id] || 0, custo = custoPorId[c.id] || 0, margem = receita - custo;
           var pct = receita ? Math.round(margem / receita * 100) : null;
