@@ -15,7 +15,7 @@
     { id: 'lancar', label: 'Lançar dados' }
   ];
 
-  var estado = { dados: null, abaAtual: 'visao', deMonth: null, ateMonth: null, clienteId: 'todos', filtroStatusVaga: 'todos', filtroTipoGraficoVagas: 'contratadas', filtroTipoVagaOp: 'todos', filtroStatusOp: 'todos', filtroCategoriaCom: 'todos', filtroStatusCom: 'todos' };
+  var estado = { dados: null, abaAtual: 'visao', deMonth: null, ateMonth: null, clienteId: 'todos', filtroStatusVaga: 'todos', filtroTipoVagaOp: 'todos', filtroStatusOp: 'todos', filtroCategoriaCom: 'todos', filtroStatusCom: 'todos' };
   var chartsAtivos = [];
 
   function pegarChaveSalva() { return localStorage.getItem(CHAVE_KEY) || ''; }
@@ -488,14 +488,10 @@
     var statusDisponiveis = Array.from(new Set(f.servicos.map(function (s) { return s.status; }))).filter(Boolean);
     var vagasFiltradas = estado.filtroStatusVaga === 'todos' ? f.servicos : f.servicos.filter(function (s) { return s.status === estado.filtroStatusVaga; });
     var porStatus = agruparContagem(vagasFiltradas, 'status');
-    var baseGraficoTipo = estado.filtroTipoGraficoVagas === 'todas' ? vagasFiltradas : vagasFiltradas.filter(function (s) { return s.status === 'Contratado'; });
-    var porTipoVaga = agruparContagem(baseGraficoTipo, 'tipoVaga');
+    var porTipoVaga = agruparContagem(vagasFiltradas, 'tipoVaga');
     var vagasOrdenadasPorStatus = vagasFiltradas.slice().sort(function (a, b) {
       return String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR');
     });
-    var legendaTipo = Object.keys(porTipoVaga).map(function (k, i) {
-      return '<div class="item"><span class="dot" style="background:' + PALETA_DONUT[i % PALETA_DONUT.length] + '"></span>' + k + ' — ' + porTipoVaga[k] + '</div>';
-    }).join('');
     return secTitle('Vagas', vagasFiltradas.length + ' de ' + f.servicos.length + ' vaga(s) no período') +
       '<div class="filtro-grupo" style="margin-bottom:16px;"><span>Status</span><select id="filtro-status-vaga">' +
       '<option value="todos"' + (estado.filtroStatusVaga === 'todos' ? ' selected' : '') + '>Todos os status</option>' +
@@ -503,13 +499,7 @@
       '</select></div>' +
       '<div class="grid-2">' +
       donutCard('Vagas por status', 'chart-vagas-status', porStatus, PALETA_DONUT) +
-      '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
-      '<span>Vagas por tipo</span>' +
-      '<select id="filtro-modo-tipo-vaga" style="font-size:12px;font-weight:400;padding:4px 8px;border-radius:6px;border:1px solid var(--line);">' +
-      '<option value="contratadas"' + (estado.filtroTipoGraficoVagas === 'contratadas' ? ' selected' : '') + '>Só contratadas</option>' +
-      '<option value="todas"' + (estado.filtroTipoGraficoVagas === 'todas' ? ' selected' : '') + '>Todas as vagas</option>' +
-      '</select></h3>' +
-      '<div class="donut-wrap"><canvas id="chart-vagas-tipo"></canvas><div class="donut-legend">' + legendaTipo + '</div></div></div>' +
+      donutCard('Vagas por tipo' + (estado.filtroStatusVaga === 'todos' ? '' : ' — ' + estado.filtroStatusVaga), 'chart-vagas-tipo', porTipoVaga, PALETA_DONUT) +
       '</div>' +
       '<div class="card" style="margin-top:24px;"><h3>Vagas' + (estado.filtroStatusVaga === 'todos' ? '' : ' — ' + estado.filtroStatusVaga) + '</h3>' +
       tabelaComExport('vagas', ['Cargo', 'Cliente', 'Candidatados', 'Entrevistados', 'Dias em Aberto', 'Status'],
@@ -520,13 +510,8 @@
   renderVagas.html = renderVagas;
   renderVagas.chart = function (f) {
     var vagasFiltradas = estado.filtroStatusVaga === 'todos' ? f.servicos : f.servicos.filter(function (s) { return s.status === estado.filtroStatusVaga; });
-    var baseGraficoTipo = estado.filtroTipoGraficoVagas === 'todas' ? vagasFiltradas : vagasFiltradas.filter(function (s) { return s.status === 'Contratado'; });
     desenharDonut('chart-vagas-status', agruparContagem(vagasFiltradas, 'status'), PALETA_DONUT);
-    desenharDonut('chart-vagas-tipo', agruparContagem(baseGraficoTipo, 'tipoVaga'), PALETA_DONUT);
-    document.getElementById('filtro-modo-tipo-vaga').addEventListener('change', function (e) {
-      estado.filtroTipoGraficoVagas = e.target.value;
-      renderAba();
-    });
+    desenharDonut('chart-vagas-tipo', agruparContagem(vagasFiltradas, 'tipoVaga'), PALETA_DONUT);
     document.getElementById('filtro-status-vaga').addEventListener('change', function (e) {
       estado.filtroStatusVaga = e.target.value;
       renderAba();
