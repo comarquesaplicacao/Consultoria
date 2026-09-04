@@ -10,6 +10,7 @@
     { id: 'comercial', label: 'Comercial' },
     { id: 'clientes', label: 'Clientes' },
     { id: 'vagas', label: 'Vagas' },
+    { id: 'contratacoes', label: 'Contratações' },
     { id: 'metas', label: 'Metas' },
     { id: 'solicitacoes', label: 'Solicitações' },
     { id: 'lancar', label: 'Lançar dados' }
@@ -224,7 +225,7 @@
   function renderAba() {
     destruirGraficos();
     var f = getFiltrado();
-    var fn = { visao: renderVisao, financeiro: renderFinanceiro, operacional: renderOperacional, comercial: renderComercial, clientes: renderClientes, vagas: renderVagas, metas: renderMetas, solicitacoes: renderSolicitacoes, lancar: renderLancar }[estado.abaAtual];
+    var fn = { visao: renderVisao, financeiro: renderFinanceiro, operacional: renderOperacional, comercial: renderComercial, clientes: renderClientes, vagas: renderVagas, contratacoes: renderContratacoes, metas: renderMetas, solicitacoes: renderSolicitacoes, lancar: renderLancar }[estado.abaAtual];
     document.getElementById('conteudo').innerHTML = fn.html(f);
     if (fn.chart) fn.chart(f);
   }
@@ -518,6 +519,56 @@
     });
   };
 
+  // ---- Contratações (vencimento de garantia/experiência) ----
+  function diasParaVencer(fimGarantia) {
+    if (!fimGarantia) return null;
+    var fim = new Date(fimGarantia);
+    if (isNaN(fim)) return null;
+    var hoje = new Date();
+    var hojeUTC = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    var fimUTC = Date.UTC(fim.getUTCFullYear(), fim.getUTCMonth(), fim.getUTCDate());
+    return Math.round((fimUTC - hojeUTC) / 86400000);
+  }
+  function badgeVencimento(dias) {
+    if (dias === null) return '<span class="badge neutro">Sem garantia cadastrada</span>';
+    if (dias < 0) return '<span class="badge alerta">Venceu há ' + Math.abs(dias) + ' dia(s)</span>';
+    if (dias <= 5) return '<span class="badge alerta">Vence em ' + dias + ' dia(s)</span>';
+    if (dias <= 15) return '<span class="badge pendente">Vence em ' + dias + ' dia(s)</span>';
+    return '<span class="badge ok">Vence em ' + dias + ' dia(s)</span>';
+  }
+
+  function renderContratacoes() {
+    // Não usa o filtro global de período (é sobre "quem vence agora", não sobre quando foi admitido) — só respeita o filtro de Cliente.
+    var todas = (estado.dados.contratacoes || []).filter(function (c) { return mesmoCliente(c.idCliente); });
+    var ativas = todas.filter(function (c) { return String(c.status || '').trim() !== 'Demitido'; });
+
+    var comDias = ativas.map(function (c) { return Object.assign({}, c, { diasRestantes: diasParaVencer(c.fimGarantia) }); });
+    var ordenadas = comDias.slice().sort(function (a, b) {
+      if (a.diasRestantes === null) return 1;
+      if (b.diasRestantes === null) return -1;
+      return a.diasRestantes - b.diasRestantes;
+    });
+
+    var venceEm7 = comDias.filter(function (c) { return c.diasRestantes !== null && c.diasRestantes >= 0 && c.diasRestantes <= 7; }).length;
+    var venceEm15 = comDias.filter(function (c) { return c.diasRestantes !== null && c.diasRestantes >= 0 && c.diasRestantes <= 15; }).length;
+    var venceEm30 = comDias.filter(function (c) { return c.diasRestantes !== null && c.diasRestantes >= 0 && c.diasRestantes <= 30; }).length;
+    var vencidas = comDias.filter(function (c) { return c.diasRestantes !== null && c.diasRestantes < 0; }).length;
+
+    return secTitle('Contratações', ativas.length + ' contratação(ões) ativa(s) — não segue o filtro de período, só o de cliente') +
+      '<div class="kpi-row">' +
+      kpi('Vencidas (aviso já passou)', vencidas, vencidas ? 'negativo' : '') +
+      kpi('Vencem em 7 dias', venceEm7, venceEm7 ? 'negativo' : '') +
+      kpi('Vencem em 15 dias', venceEm15, venceEm15 ? '' : '') +
+      kpi('Vencem em 30 dias', venceEm30) +
+      '</div>' +
+      '<div class="card" style="margin-top:24px;"><h3>Contratos ativos, ordenados pelo mais próximo de vencer</h3>' +
+      tabelaComExport('contratacoes', ['Contratado', 'Cargo', 'Cliente', 'Data Admissão', 'Fim da Garantia', 'Situação'],
+        ordenadas.map(function (c) { return [c.contratado, c.cargo, c.clienteNome, formatarValorCelula(c.admissao), formatarValorCelula(c.fimGarantia), badgeVencimento(c.diasRestantes)]; }),
+        ordenadas.map(function (c) { return [c.contratado, c.cargo, c.clienteNome, formatarValorCelula(c.admissao), formatarValorCelula(c.fimGarantia), c.diasRestantes === null ? 'Sem garantia cadastrada' : (c.diasRestantes + ' dia(s)')]; })) +
+      '</div>';
+  }
+  renderContratacoes.html = renderContratacoes;
+
   // ---- Metas ----
   function renderMetas(f) {
     var agora = new Date();
@@ -542,7 +593,16 @@
       return { exibicao: [rotuloMes(mk), formatarMoeda(meta), formatarMoeda(real), statusHtml], cru: [rotuloMes(mk), meta, real, statusTexto] };
     });
     return secTitle('Metas', 'Meta da consultoria (global) x realizado no filtro atual') +
-      '<div class="card"><h3>Meta x realizado</h3><canvas id="chart-metas" height="150"></canvas></div>' +
+      '<div class="kpi-row">' +
+      kpi('Meta total do período', formatarMoeda(somar(meses.map(function (mk) { return { valor: metaMap[mk] || 0 }; }), 'valor'))) +
+      kpi('Realizado total do período', formatarMoeda(somar(meses.map(function (mk) { return { valor: realizadoMap[mk] || 0 }; }), 'valor')), 'positivo') +
+      kpi('Cumprimento do período', (function () {
+        var totalMeta = meses.reduce(function (t, mk) { return t + (metaMap[mk] || 0); }, 0);
+        var totalReal = meses.reduce(function (t, mk) { return t + (realizadoMap[mk] || 0); }, 0);
+        return totalMeta ? Math.round(totalReal / totalMeta * 100) + '%' : '—';
+      })()) +
+      '</div>' +
+      '<div class="card" style="margin-top:16px;"><h3>Meta x realizado</h3><canvas id="chart-metas" height="150"></canvas></div>' +
       '<div class="card" style="margin-top:24px;"><h3>Detalhe por mês</h3>' +
       tabelaComExport('metas_detalhe', ['Mês', 'Meta', 'Realizado', 'Cumprimento'], linhas.map(function (l) { return l.exibicao; }), linhas.map(function (l) { return l.cru; })) +
       '</div>';
@@ -654,6 +714,10 @@
           return '<label style="font-size:12px;color:var(--muted);">' + h +
             '<input type="text" data-campo="' + h + '" disabled placeholder="(gerado automaticamente ao salvar)" style="margin-top:4px;background:#F5F5F5;"></label>';
         }
+        if (sel.value === 'Contratações' && h === 'Fim da Garantia') {
+          return '<label style="font-size:12px;color:var(--muted);">' + h +
+            '<input type="date" data-campo="' + h + '" disabled placeholder="(calculado: admissão + dias de garantia)" style="margin-top:4px;background:#F5F5F5;"></label>';
+        }
         var nomeLista = LISTA_POR_CAMPO[sel.value + '|' + h];
         if (nomeLista && listas[nomeLista] && listas[nomeLista].length) {
           return '<label style="font-size:12px;color:var(--muted);">' + h +
@@ -672,6 +736,22 @@
         return '<label style="font-size:12px;color:var(--muted);">' + h +
           '<input type="' + inputTipo + '" data-campo="' + h + '" style="margin-top:4px;"></label>';
       }).join('');
+
+      if (sel.value === 'Contratações') {
+        var elAdmissao = document.querySelector('#campos-lancar [data-campo="Data Admissão"]');
+        var elDias = document.querySelector('#campos-lancar [data-campo="Dias de Garantia"]');
+        var elFim = document.querySelector('#campos-lancar [data-campo="Fim da Garantia"]');
+        var recalcFimGarantia = function () {
+          if (!elAdmissao || !elDias || !elFim) return;
+          var admissao = elAdmissao.value, dias = parseInt(elDias.value, 10);
+          if (!admissao || isNaN(dias)) { elFim.value = ''; return; }
+          var d = new Date(admissao + 'T00:00:00Z');
+          d.setUTCDate(d.getUTCDate() + dias);
+          elFim.value = d.toISOString().slice(0, 10);
+        };
+        if (elAdmissao) elAdmissao.addEventListener('input', recalcFimGarantia);
+        if (elDias) elDias.addEventListener('input', recalcFimGarantia);
+      }
     }
 
     function sairDoModoEdicao() {
