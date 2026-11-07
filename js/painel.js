@@ -226,6 +226,7 @@
     destruirGraficos();
     var f = getFiltrado();
     var fn = { visao: renderVisao, financeiro: renderFinanceiro, operacional: renderOperacional, comercial: renderComercial, clientes: renderClientes, vagas: renderVagas, contratacoes: renderContratacoes, metas: renderMetas, solicitacoes: renderSolicitacoes, lancar: renderLancar }[estado.abaAtual];
+    document.getElementById('conteudo').style.maxWidth = '';
     document.getElementById('conteudo').innerHTML = fn.html(f);
     if (fn.chart) fn.chart(f);
   }
@@ -662,6 +663,7 @@
   }
   renderLancar.html = renderLancar;
   renderLancar.chart = function () {
+    document.getElementById('conteudo').style.maxWidth = '1416px'; // ~20% mais larga que o padrão (1180px)
     if (estado.estrutura) { montarFormLancar(); return; }
     chamarAppsScript({ action: 'estrutura', chave: pegarChaveSalva() }).then(function (res) {
       if (res.erro) { document.getElementById('lancar-form-area').innerHTML = '<p class="mensagem erro">' + res.erro + '</p>'; return; }
@@ -783,10 +785,11 @@
     }
 
     function renderTabelaAba(nomeAba, headers, linhas) {
+      var estiloThFixo = 'position:sticky;top:0;z-index:1;background:var(--surface);box-shadow:0 1px 0 var(--ink);';
       var areaTabela = document.getElementById('lancar-tabela-area');
       areaTabela.innerHTML = '<h3>Registros em "' + nomeAba + '" (' + linhas.length + ')</h3>' +
-        '<div style="overflow-x:auto;"><table><thead><tr>' +
-        headers.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '<th>Ações</th>' +
+        '<div style="overflow:auto;max-height:70vh;"><table><thead><tr>' +
+        headers.map(function (h) { return '<th style="' + estiloThFixo + '">' + h + '</th>'; }).join('') + '<th style="' + estiloThFixo + '">Ações</th>' +
         '</tr></thead><tbody>' +
         linhas.slice().reverse().map(function (l) {
           return '<tr>' + headers.map(function (h) { return '<td>' + formatarValorCelula(l[h]) + '</td>'; }).join('') +
