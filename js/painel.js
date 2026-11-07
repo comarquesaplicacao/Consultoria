@@ -788,7 +788,7 @@
         '<div style="overflow-x:auto;"><table><thead><tr>' +
         headers.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '<th>Ações</th>' +
         '</tr></thead><tbody>' +
-        linhas.map(function (l) {
+        linhas.slice().reverse().map(function (l) {
           return '<tr>' + headers.map(function (h) { return '<td>' + formatarValorCelula(l[h]) + '</td>'; }).join('') +
             '<td style="white-space:nowrap;">' +
             '<button type="button" class="btn-editar-linha" data-linha="' + l._linha + '" style="padding:4px 10px;font-size:12px;margin-right:6px;">Editar</button>' +
